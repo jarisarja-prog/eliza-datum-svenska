@@ -15,3 +15,11 @@ Studerande på nivå A1–A2.
 
 ## Teknik
 HTML och JavaScript
+
+## Demo
+
+https://jarisarja-prog.github.io/eliza-datum-svenska/
+
+## Screenshot
+
+![ELIZA screenshot](screenshot.png)
