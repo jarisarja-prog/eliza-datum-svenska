@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <title>TERMINAL: Lär dig datum på svenska</title>
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            background-color: #050505;
+            color: #14fdce;
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            padding: 20px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            text-shadow: 0 0 5px rgba(20, 253, 206, 0.5);
+        }
+
+        #output {
+            flex: 1;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+        }
+
+        #input-area {
+            display: flex;
+            border-top: 2px solid #14fdce;
+            padding: 20px 0;
+        }
+
+        #prompt {
+            font-weight: bold;
+            margin-right: 15px;
+        }
+
+        input {
+            background: transparent;
+            border: none;
+            color: #14fdce;
+            font-family: inherit;
+            font-size: 1.2rem;
+            flex: 1;
+            outline: none;
+        }
+
+        #diploma {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: gold;
+            color: black;
+            padding: 50px;
+            border: 10px double black;
+            text-align: center;
+            font-weight: bold;
+            z-index: 999;
+            text-shadow: none;
+        }
+
+        button {
+            font-family: inherit;
+            font-size: 1rem;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div id="diploma">
+    <h1>GRATULATIONER!</h1>
+    <p>DU ÄR NU EN MÄSTARE PÅ DATUM.</p>
+    <button onclick="location.reload()">FORTSÄTT</button>
+</div>
+
+<div id="output"></div>
+
+<div id="input-area">
+    <span id="prompt">USER:</span>
+    <input type="text" id="userInput" autofocus autocomplete="off">
+</div>
+
+<script>
+    const output = document.getElementById("output");
+    const input = document.getElementById("userInput");
+
+    let score = 0;
+    let currentWord = null;
+
+    const ordinalMap = {
+        1: "FÖRSTA",
+        2: "ANDRA",
+        3: "TREDJE",
+        4: "FJÄRDE",
+        5: "FEMTE",
+        6: "SJÄTTE",
+        7: "SJUNDE",
+        8: "ÅTTONDE",
+        9: "NIONDE",
+        10: "TIONDE",
+        11: "ELFTE",
+        12: "TOLFTE",
+        13: "TRETTONDE",
+        14: "FJORTONDE",
+        15: "FEMTONDE",
+        16: "SEXTONDE",
+        17: "SJUTTONDE",
+        18: "ARTONDE",
+        19: "NITTONDE",
+        20: "TJUGONDE",
+        21: "TJUGOFÖRSTA",
+        22: "TJUGOANDRA",
+        23: "TJUGOTREDJE",
+        24: "TJUGOFJÄRDE",
+        25: "TJUGOFEMTE",
+        26: "TJUGOSJÄTTE",
+        27: "TJUGOSJUNDE",
+        28: "TJUGOÅTTONDE",
+        29: "TJUGONIONDE",
+        30: "TRETTIONDE",
+        31: "TRETTIOFÖRSTA"
+    };
+
+    const months = [
+        { month: 1, days: 31 },
+        { month: 2, days: 28 },
+        { month: 3, days: 31 },
+        { month: 4, days: 30 },
+        { month: 5, days: 31 },
+        { month: 6, days: 30 },
+        { month: 7, days: 31 },
+        { month: 8, days: 31 },
+        { month: 9, days: 30 },
+        { month: 10, days: 31 },
+        { month: 11, days: 30 },
+        { month: 12, days: 31 }
+    ];
+
+    const words = [];
+
+    for (const m of months) {
+        for (let d = 1; d <= m.days; d++) {
+            words.push({
+                w: `${d}.${m.month}.`,
+                a: `DEN ${ordinalMap[d]} I ${ordinalMap[m.month]}`
+            });
+        }
+    }
+
+    async function elizaSay(text) {
+        const div = document.createElement("div");
+        div.innerHTML = `<span style="color:#fff">ELIZA:</span> `;
+        output.appendChild(div);
+
+        for (let char of text.toUpperCase()) {
+            div.innerHTML += char;
+            output.scrollTop = output.scrollHeight;
+            await new Promise(r => setTimeout(r, 20));
+        }
+    }
+
+    function normalizeAnswer(text) {
+        return text
+            .toUpperCase()
+            .trim()
+            .replace(/\s+/g, " ")
+            .replace(/\s*\.\s*/g, ".")
+            .replace(/\s*,\s*/g, ",");
+    }
+
+    function ask() {
+        currentWord = words[Math.floor(Math.random() * words.length)];
+        elizaSay("HUR SÄGER MAN DATUMET '" + currentWord.w + "' PÅ SVENSKA?");
+    }
+
+    input.addEventListener("keypress", async (e) => {
+        if (e.key === "Enter" && input.value.trim() !== "") {
+            const rawVal = input.value;
+            const val = normalizeAnswer(rawVal);
+            input.value = "";
+
+            output.innerHTML += `\n<span style="color:#5555ff">USER:</span> ${rawVal.toUpperCase()}\n`;
+
+            if (val.includes("vittu") || val.includes("paskaa") || val.includes("SKIT")) {
+                await elizaSay("JAG FÖRSTÅR ATT DET KÄNNS SVÅRT, MEN DU ÄR DUKTIG. LÅT OSS FORTSÄTTA.");
+            } else if (val === currentWord.a) {
+                score++;
+                if (score >= 10) {
+                    document.getElementById("diploma").style.display = "block";
+                    return;
+                }
+                await elizaSay("STRÅLANDE!! HELT RÄTT. DU HAR " + score + " POÄNG.");
+            } else {
+                score = 0;
+                await elizaSay("INTE RIKTIGT. RÄTT SVAR ÄR " + currentWord.a + ".");
+                await elizaSay("VINK: SKRIV ALLTID DEN + DAG + I + MÅNAD.");
+            }
+
+            setTimeout(ask, 1200);
+        }
+    });
+
+    window.onload = async () => {
+        await elizaSay("HEJ! JAG ÄR ELIZA. LÅT OSS TRÄNA DATUM PÅ SVENSKA.");
+        await elizaSay("EXEMPEL:");
+        await elizaSay("1.1. = DEN FÖRSTA I FÖRSTA");
+        await elizaSay("VINK: SKRIV ALLTID DEN + DAG + I + MÅNAD.");
+        setTimeout(ask, 1500);
+    };
+</script>
+
+</body>
+</html>
