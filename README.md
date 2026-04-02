@@ -23,3 +23,8 @@ Studerande på nivå A1–A2.
 
 ## Screenshot
 ![ELIZA screenshot](screenshot.png)
+
+🌐 Live demo
+
+👉 Try it here:
+https://jarisarja-prog.github.io/eliza-datum-svenska/
