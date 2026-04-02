@@ -35,8 +35,7 @@
 
         #prompt {
             font-weight: bold;
-            margin-right: 15px;
-            min-width: 120px;
+            margin-right: 10px;
         }
 
         input {
@@ -154,7 +153,9 @@
         for (let d = 1; d <= m.days; d++) {
             words.push({
                 w: `${d}.${m.month}.`,
-                a: `DEN ${ordinalMap[d]} I ${ordinalMap[m.month]}`
+                a: `DEN ${ordinalMap[d]} I ${ordinalMap[m.month]}`,
+                dayWord: ordinalMap[d],
+                monthWord: ordinalMap[m.month]
             });
         }
     }
@@ -162,8 +163,8 @@
     const introReplies = [
         "TREVLIGT ATT TRÄFFAS, {name}.",
         "VÄLKOMMEN, {name}.",
-        "HEJ {name}. DET HÄR BLIR ROLIGT.",
-        "BRA, {name}. DÅ BÖRJAR VI."
+        "HEJ {name}. DÅ BÖRJAR VI.",
+        "BRA, {name}. NU SÄTTER VI IGÅNG."
     ];
 
     const praiseReplies = [
@@ -174,26 +175,11 @@
         "SNYGGT, {name}! RÄTT SVAR. DU HAR {score} POÄNG."
     ];
 
-    const wrongReplies = [
-        "INTE RIKTIGT, {name}. RÄTT SVAR ÄR {answer}.",
-        "NÄSTAN, {name}. DET RÄTTA SVARET ÄR {answer}.",
-        "INTE DEN HÄR GÅNGEN, {name}. RÄTT SVAR ÄR {answer}.",
-        "JAG SKULLE SKRIVA: {answer}.",
-        "DET BLEV FEL DEN HÄR GÅNGEN, {name}. RÄTT SVAR ÄR {answer}."
-    ];
-
-    const hintReplies = [
-        "VINK: SKRIV ALLTID DEN + DAG + I + MÅNAD.",
-        "KOM IHÅG MÖNSTRET: DEN + ORDINALTAL + I + ORDINALTAL.",
-        "TIPS: BÖRJA ALLTID MED DEN.",
-        "VINK: FÖRST DAG, SEDAN I, SEDAN MÅNAD."
-    ];
-
     const encouragementReplies = [
         "JAG FÖRSTÅR ATT DET KÄNNS SVÅRT, {name}, MEN DU ÄR DUKTIG. LÅT OSS FORTSÄTTA.",
         "DET ÄR OKEJ, {name}. VI TAR DET LUGNT OCH FORTSÄTTER.",
         "INGEN FARA, {name}. DU LÄR DIG STEG FÖR STEG.",
-        "JAG HÖR ATT DU ÄR FRUSTRERAD, {name}, MEN VI FORTSÄTTER TILLSAMMANS."
+        "VI FORTSÄTTER, {name}. DET HÄR KOMMER ATT GÅ BRA."
     ];
 
     const askReplies = [
@@ -259,13 +245,47 @@
         });
     }
 
+    function hasWord(answer, word) {
+        return answer.split(" ").includes(word);
+    }
+
+    function analyzeMistake(answer, current) {
+        const expected = current.a;
+        const words = answer.split(" ");
+
+        if (!hasWord(answer, "DEN")) {
+            return `DU GLÖMDE ORDET DEN, ${getDisplayName()}. RÄTT SVAR BÖRJAR MED DEN.`;
+        }
+
+        if (!hasWord(answer, "I")) {
+            return `DU GLÖMDE ORDET I, ${getDisplayName()}. DET SKA HETA ${expected}.`;
+        }
+
+        const denIndex = words.indexOf("DEN");
+        const iIndex = words.indexOf("I");
+
+        if (denIndex !== -1 && iIndex !== -1 && iIndex < denIndex) {
+            return `ORDEN HAMNADE I FEL ORDNING, ${getDisplayName()}. DET SKA HETA ${expected}.`;
+        }
+
+        if (!hasWord(answer, current.dayWord)) {
+            return `SJÄLVA DAGEN BLEV FEL, ${getDisplayName()}. DET SKA VARA ${current.dayWord}.`;
+        }
+
+        if (!hasWord(answer, current.monthWord)) {
+            return `MÅNADEN BLEV FEL, ${getDisplayName()}. HÄR SKA DET VARA ${current.monthWord}.`;
+        }
+
+        return `NÄSTAN, ${getDisplayName()}. RÄTT SVAR ÄR ${expected}.`;
+    }
+
     async function startLesson() {
         promptEl.textContent = `${getDisplayName()}:`;
         await sayFrom(introReplies, { name: getDisplayName() });
         await elizaSay("LÅT OSS TRÄNA DATUM PÅ SVENSKA.");
         await elizaSay("EXEMPEL:");
         await elizaSay("1.1. = DEN FÖRSTA I FÖRSTA");
-        await sayFrom(hintReplies);
+        await elizaSay("KOM IHÅG ATT SVARET BÖRJAR MED DEN.");
         setTimeout(ask, 1500);
     }
 
@@ -314,11 +334,7 @@
                 });
             } else {
                 score = 0;
-                await sayFrom(wrongReplies, {
-                    name: getDisplayName(),
-                    answer: currentWord.a
-                });
-                await sayFrom(hintReplies);
+                await elizaSay(analyzeMistake(val, currentWord));
             }
 
             setTimeout(ask, 1200);
