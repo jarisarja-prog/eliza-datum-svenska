@@ -36,6 +36,7 @@
         #prompt {
             font-weight: bold;
             margin-right: 15px;
+            min-width: 120px;
         }
 
         input {
@@ -76,23 +77,27 @@
 
 <div id="diploma">
     <h1>GRATULATIONER!</h1>
-    <p>DU ÄR NU EN MÄSTARE PÅ DATUM.</p>
+    <p id="diplomaText">DU ÄR NU EN MÄSTARE PÅ DATUM.</p>
     <button onclick="location.reload()">FORTSÄTT</button>
 </div>
 
 <div id="output"></div>
 
 <div id="input-area">
-    <span id="prompt">USER:</span>
+    <span id="prompt">ANVÄNDARE:</span>
     <input type="text" id="userInput" autofocus autocomplete="off">
 </div>
 
 <script>
     const output = document.getElementById("output");
     const input = document.getElementById("userInput");
+    const promptEl = document.getElementById("prompt");
+    const diplomaText = document.getElementById("diplomaText");
 
     let score = 0;
     let currentWord = null;
+    let userName = "";
+    let awaitingName = true;
 
     const ordinalMap = {
         1: "FÖRSTA",
@@ -154,6 +159,81 @@
         }
     }
 
+    const introReplies = [
+        "TREVLIGT ATT TRÄFFAS, {name}.",
+        "VÄLKOMMEN, {name}.",
+        "HEJ {name}. DET HÄR BLIR ROLIGT.",
+        "BRA, {name}. DÅ BÖRJAR VI."
+    ];
+
+    const praiseReplies = [
+        "STRÅLANDE, {name}! HELT RÄTT. DU HAR {score} POÄNG.",
+        "MYCKET BRA, {name}! DET STÄMMER. DU HAR {score} POÄNG.",
+        "FINT JOBBAT, {name}! DET VAR RÄTT. DU HAR {score} POÄNG.",
+        "UTMÄRKT, {name}! DU HAR {score} POÄNG.",
+        "SNYGGT, {name}! RÄTT SVAR. DU HAR {score} POÄNG."
+    ];
+
+    const wrongReplies = [
+        "INTE RIKTIGT, {name}. RÄTT SVAR ÄR {answer}.",
+        "NÄSTAN, {name}. DET RÄTTA SVARET ÄR {answer}.",
+        "INTE DEN HÄR GÅNGEN, {name}. RÄTT SVAR ÄR {answer}.",
+        "JAG SKULLE SKRIVA: {answer}.",
+        "DET BLEV FEL DEN HÄR GÅNGEN, {name}. RÄTT SVAR ÄR {answer}."
+    ];
+
+    const hintReplies = [
+        "VINK: SKRIV ALLTID DEN + DAG + I + MÅNAD.",
+        "KOM IHÅG MÖNSTRET: DEN + ORDINALTAL + I + ORDINALTAL.",
+        "TIPS: BÖRJA ALLTID MED DEN.",
+        "VINK: FÖRST DAG, SEDAN I, SEDAN MÅNAD."
+    ];
+
+    const encouragementReplies = [
+        "JAG FÖRSTÅR ATT DET KÄNNS SVÅRT, {name}, MEN DU ÄR DUKTIG. LÅT OSS FORTSÄTTA.",
+        "DET ÄR OKEJ, {name}. VI TAR DET LUGNT OCH FORTSÄTTER.",
+        "INGEN FARA, {name}. DU LÄR DIG STEG FÖR STEG.",
+        "JAG HÖR ATT DU ÄR FRUSTRERAD, {name}, MEN VI FORTSÄTTER TILLSAMMANS."
+    ];
+
+    const askReplies = [
+        "{name}, HUR SÄGER MAN DATUMET '{date}' PÅ SVENSKA?",
+        "DIN TUR, {name}: HUR LÄSER MAN '{date}' PÅ SVENSKA?",
+        "{name}, VAD BLIR DATUMET '{date}' MED ORD PÅ SVENSKA?",
+        "KAN DU DET HÄR, {name}? HUR SÄGER MAN '{date}'?"
+    ];
+
+    function randomItem(arr) {
+        return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function fillTemplate(text, vars = {}) {
+        return text.replace(/\{(\w+)\}/g, (_, key) => vars[key] ?? "");
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function normalizeAnswer(text) {
+        return text
+            .toUpperCase()
+            .trim()
+            .replace(/\s+/g, " ")
+            .replace(/\s*\.\s*/g, ".")
+            .replace(/\s*,\s*/g, ",");
+    }
+
+    function normalizeName(text) {
+        return text.trim().replace(/\s+/g, " ");
+    }
+
+    function getDisplayName() {
+        return userName ? userName.toUpperCase() : "ANVÄNDARE";
+    }
+
     async function elizaSay(text) {
         const div = document.createElement("div");
         div.innerHTML = `<span style="color:#fff">ELIZA:</span> `;
@@ -166,41 +246,79 @@
         }
     }
 
-    function normalizeAnswer(text) {
-        return text
-            .toUpperCase()
-            .trim()
-            .replace(/\s+/g, " ")
-            .replace(/\s*\.\s*/g, ".")
-            .replace(/\s*,\s*/g, ",");
+    async function sayFrom(list, vars = {}) {
+        const line = fillTemplate(randomItem(list), vars);
+        await elizaSay(line);
     }
 
-    function ask() {
+    async function ask() {
         currentWord = words[Math.floor(Math.random() * words.length)];
-        elizaSay("HUR SÄGER MAN DATUMET '" + currentWord.w + "' PÅ SVENSKA?");
+        await sayFrom(askReplies, {
+            name: getDisplayName(),
+            date: currentWord.w
+        });
+    }
+
+    async function startLesson() {
+        promptEl.textContent = `${getDisplayName()}:`;
+        await sayFrom(introReplies, { name: getDisplayName() });
+        await elizaSay("LÅT OSS TRÄNA DATUM PÅ SVENSKA.");
+        await elizaSay("EXEMPEL:");
+        await elizaSay("1.1. = DEN FÖRSTA I FÖRSTA");
+        await sayFrom(hintReplies);
+        setTimeout(ask, 1500);
     }
 
     input.addEventListener("keypress", async (e) => {
         if (e.key === "Enter" && input.value.trim() !== "") {
             const rawVal = input.value;
-            const val = normalizeAnswer(rawVal);
             input.value = "";
 
-            output.innerHTML += `\n<span style="color:#5555ff">USER:</span> ${rawVal.toUpperCase()}\n`;
+            output.innerHTML += `\n<span style="color:#5555ff">${escapeHtml(getDisplayName())}:</span> ${escapeHtml(rawVal.toUpperCase())}\n`;
+            output.scrollTop = output.scrollHeight;
 
-            if (val.includes("vittu") || val.includes("paskaa") || val.includes("SKIT")) {
-                await elizaSay("JAG FÖRSTÅR ATT DET KÄNNS SVÅRT, MEN DU ÄR DUKTIG. LÅT OSS FORTSÄTTA.");
-            } else if (val === currentWord.a) {
+            if (awaitingName) {
+                const cleanedName = normalizeName(rawVal);
+
+                if (!cleanedName) {
+                    await elizaSay("JAG HÖRDE INTE DITT NAMN. VAD HETER DU?");
+                    return;
+                }
+
+                userName = cleanedName;
+                awaitingName = false;
+                await startLesson();
+                return;
+            }
+
+            const val = normalizeAnswer(rawVal);
+
+            if (val.includes("VITTU") || val.includes("PASKAA") || val.includes("SKIT")) {
+                await sayFrom(encouragementReplies, { name: getDisplayName() });
+                setTimeout(ask, 1200);
+                return;
+            }
+
+            if (val === currentWord.a) {
                 score++;
+
                 if (score >= 10) {
+                    diplomaText.textContent = `${getDisplayName()}, DU ÄR NU EN MÄSTARE PÅ DATUM.`;
                     document.getElementById("diploma").style.display = "block";
                     return;
                 }
-                await elizaSay("STRÅLANDE!! HELT RÄTT. DU HAR " + score + " POÄNG.");
+
+                await sayFrom(praiseReplies, {
+                    name: getDisplayName(),
+                    score: score
+                });
             } else {
                 score = 0;
-                await elizaSay("INTE RIKTIGT. RÄTT SVAR ÄR " + currentWord.a + ".");
-                await elizaSay("VINK: SKRIV ALLTID DEN + DAG + I + MÅNAD.");
+                await sayFrom(wrongReplies, {
+                    name: getDisplayName(),
+                    answer: currentWord.a
+                });
+                await sayFrom(hintReplies);
             }
 
             setTimeout(ask, 1200);
@@ -208,11 +326,8 @@
     });
 
     window.onload = async () => {
-        await elizaSay("HEJ! JAG ÄR ELIZA. LÅT OSS TRÄNA DATUM PÅ SVENSKA.");
-        await elizaSay("EXEMPEL:");
-        await elizaSay("1.1. = DEN FÖRSTA I FÖRSTA");
-        await elizaSay("VINK: SKRIV ALLTID DEN + DAG + I + MÅNAD.");
-        setTimeout(ask, 1500);
+        await elizaSay("HEJ! JAG ÄR ELIZA.");
+        await elizaSay("VAD HETER DU?");
     };
 </script>
 
